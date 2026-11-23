@@ -14,7 +14,7 @@ db.exec(`
 `)
 const sessions = new Map()
 const assets = new Map([
-  ['/', ['bank.html', 'text/html']],
+  ['/', ['index.html', 'text/html']],
   ['/bank.css', ['bank.css', 'text/css']],
   ['/bank.js', ['bank.js', 'text/javascript']]
 ].map(([path, [file, type]]) => [path, { content: readFileSync(join(__dirname, file)), type }]))
