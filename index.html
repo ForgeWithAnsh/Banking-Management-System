@@ -3,15 +3,30 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Savings</title>
+  <title>SkyBank</title>
   <link rel="stylesheet" href="./bank.css">
 </head>
 <body>
-  <header><strong>Savings</strong><button id="sign-out" class="secondary" hidden>Sign out</button></header>
+  <header class="sidebar">
+    <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">▥</span>SkyBank</a>
+    <nav aria-label="Account navigation">
+      <a href="#dashboard">Overview</a>
+      <a href="#transfer-panel">Move money</a>
+      <a href="#details-panel">Account details</a>
+      <a href="#settings-panel">Settings</a>
+    </nav>
+    <button id="sign-out" class="secondary" hidden>Sign out</button>
+  </header>
   <main>
     <p id="loading" role="status">Loading your account…</p>
     <section id="auth" class="card" hidden>
-      <h1>Sign in</h1>
+      <div class="auth-art" aria-hidden="true">
+        <div class="bank-illustration"><i></i><i></i><i></i><i></i></div>
+        <strong>SkyBank</strong>
+      </div>
+      <div class="auth-content">
+      <h1>Welcome back</h1>
+      <p class="muted">Sign in to your account</p>
       <button id="google-login" type="button">Continue with Google</button>
       <hr>
       <form id="credentials">
@@ -19,6 +34,7 @@
         <label>Password<input name="password" type="password" minlength="8" maxlength="128" required></label>
         <div class="actions"><button value="login">Sign in</button><button value="create" class="secondary">Create account</button></div>
       </form>
+      </div>
     </section>
     <section id="profile" class="card" hidden>
       <h1>Set up your account</h1>
@@ -39,7 +55,7 @@
     <section id="dashboard" hidden>
       <h1>Your savings</h1>
       <div class="card balance"><p>Available demo balance</p><output id="balance"></output></div>
-      <section class="card">
+      <section id="transfer-panel" class="card">
         <h2>Move money</h2>
         <form id="money-form">
           <label>Amount (INR)<input name="amount" inputmode="decimal" placeholder="0.00"
@@ -52,7 +68,7 @@
           <p id="money-status" class="status" role="status"></p>
         </form>
       </section>
-      <section class="card">
+      <section id="details-panel" class="card">
         <h2>Account details</h2>
         <dl>
           <dt>Full name</dt><dd id="account-name"></dd>
@@ -65,7 +81,7 @@
           <dt>Customer ID</dt><dd id="account-customerId"></dd>
         </dl>
       </section>
-      <section class="card">
+      <section id="settings-panel" class="card">
         <h2>Settings</h2>
         <form id="settings-form">
           <label>Set demo balance (INR)<input name="amount" inputmode="decimal" pattern="[0-9]{1,9}(\.[0-9]{1,2})?" required></label>
