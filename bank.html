@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Savings</title>
+  <link rel="stylesheet" href="/bank.css">
+</head>
+<body>
+  <header><strong>Savings</strong><button id="sign-out" class="secondary" hidden>Sign out</button></header>
+  <main>
+    <p id="loading" role="status">Loading your account…</p>
+    <section id="auth" class="card" hidden>
+      <h1 id="auth-title">Sign in</h1>
+      <form id="auth-form">
+        <div id="registration" hidden>
+          <label>Full name<input name="name" autocomplete="name" maxlength="100" required disabled></label>
+          <label>Phone number<input name="phone" type="tel" autocomplete="tel" maxlength="25" required disabled></label>
+        </div>
+        <label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required></label>
+        <div class="actions">
+          <button id="auth-submit">Sign in</button>
+          <button class="secondary" id="switch-mode" type="button">Create account</button>
+        </div>
+        <p id="auth-status" class="status" role="status"></p>
+      </form>
+    </section>
+    <section id="dashboard" hidden>
+      <h1>Your savings</h1>
+      <div class="card balance"><p>Available balance</p><output id="balance"></output></div>
+      <section class="card">
+        <h2>Move money</h2>
+        <form id="money-form">
+          <label>Amount (INR)<input name="amount" inputmode="decimal" placeholder="0.00"
+            pattern="[0-9]{1,9}(\.[0-9]{1,2})?" required></label>
+          <div class="actions">
+            <button name="action" value="deposit">Deposit</button>
+            <button name="action" value="withdraw" class="secondary">Withdraw</button>
+          </div>
+          <p id="money-status" class="status" role="status"></p>
+        </form>
+      </section>
+      <section class="card">
+        <h2>Account details</h2>
+        <dl>
+          <dt>Full name</dt><dd id="account-name"></dd>
+          <dt>Email</dt><dd id="account-email"></dd>
+          <dt>Phone number</dt><dd id="account-phone"></dd>
+        </dl>
+      </section>
+    </section>
+  </main>
+  <script src="/bank.js" defer></script>
+</body>
+</html>
