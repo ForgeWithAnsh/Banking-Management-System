@@ -11,24 +11,22 @@
   <main>
     <p id="loading" role="status">Loading your account…</p>
     <section id="auth" class="card" hidden>
-      <h1 id="auth-title">Sign in</h1>
-      <form id="auth-form">
-        <div id="registration" hidden>
-          <label>Full name<input name="name" autocomplete="name" maxlength="100" required disabled></label>
-          <label>Phone number<input name="phone" type="tel" autocomplete="tel" maxlength="25" required disabled></label>
-        </div>
-        <label>Email<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
-        <label>Password<input name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required></label>
-        <div class="actions">
-          <button id="auth-submit">Sign in</button>
-          <button class="secondary" id="switch-mode" type="button">Create account</button>
-        </div>
-        <p id="auth-status" class="status" role="status"></p>
+      <h1>Sign in</h1>
+      <button id="google-login" type="button">Continue with Google</button>
+    </section>
+    <section id="profile" class="card" hidden>
+      <h1>Set up your account</h1>
+      <form id="profile-form">
+        <label>Full name<input name="name" autocomplete="name" maxlength="100" required></label>
+        <label>Email<input name="email" type="email" readonly></label>
+        <label>Phone number<input name="phone" type="tel" autocomplete="tel" maxlength="25" required></label>
+        <button>Save account</button>
       </form>
     </section>
+    <p id="account-status" class="status" role="status"></p>
     <section id="dashboard" hidden>
       <h1>Your savings</h1>
-      <div class="card balance"><p>Available balance</p><output id="balance"></output></div>
+      <div class="card balance"><p>Available demo balance</p><output id="balance"></output></div>
       <section class="card">
         <h2>Move money</h2>
         <form id="money-form">
@@ -51,6 +49,6 @@
       </section>
     </section>
   </main>
-  <script src="./bank.js" defer></script>
+  <script type="module" src="./bank.js"></script>
 </body>
 </html>
