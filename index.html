@@ -31,7 +31,6 @@
         <label>Account type<select name="type"><option value="savings">Savings</option><option value="current">Current</option></select></label>
         <label>Initial deposit (INR)<input name="initial" inputmode="decimal" value="0" pattern="[0-9]{1,9}(\.[0-9]{1,2})?" required></label>
         <label>Username<input name="username" maxlength="32" pattern="[A-Za-z0-9_]{3,32}" required></label>
-        <label>Customer ID<input name="customerId" maxlength="40" required></label>
         <label>PIN<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" autocomplete="new-password" required></label>
         <button>Save account</button>
       </form>
@@ -45,6 +44,7 @@
         <form id="money-form">
           <label>Amount (INR)<input name="amount" inputmode="decimal" placeholder="0.00"
             pattern="[0-9]{1,9}(\.[0-9]{1,2})?" required></label>
+          <label>PIN<input name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,6}" required></label>
           <div class="actions">
             <button name="action" value="deposit">Deposit</button>
             <button name="action" value="withdraw" class="secondary">Withdraw</button>

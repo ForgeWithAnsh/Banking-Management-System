@@ -34,6 +34,12 @@ async function hashPin(pin, salt) {
   }, key, 256)
   return Array.from(new Uint8Array(bits), byte => byte.toString(16).padStart(2, '0')).join('')
 }
+
+async function checkPin(pin, account) {
+  if (!account?.pinHash || await hashPin(pin, account.pinSalt) !== account.pinHash) {
+    throw new Error('Incorrect PIN.')
+  }
+}
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
 let unsubscribe = () => {}
 
@@ -151,9 +157,9 @@ profile.addEventListener('submit', event => {
     }
     const values = Object.fromEntries(new FormData(profile))
     const address = values.address.trim()
-    const customerId = values.customerId.trim()
-    if (!address || !customerId || !/^[0-9]{4,6}$/.test(values.pin)) {
-      throw new Error('Enter your address, customer ID and a 4–6 digit PIN.')
+    const customerId = 'CUS-' + user.uid
+    if (!address || !/^[0-9]{4,6}$/.test(values.pin)) {
+      throw new Error('Enter your address and a 4–6 digit PIN.')
     }
     const pinSalt = crypto.randomUUID()
     const pinHash = await hashPin(values.pin, pinSalt)
@@ -178,13 +184,17 @@ money.addEventListener('submit', event => {
   const action = event.submitter?.value
   if (!user || !['deposit', 'withdraw'].includes(action)) return
   perform(money.querySelectorAll('button'), 'money-status', async () => {
+    const pin = money.elements.pin.value
+    money.elements.pin.value = ''
     const units = parseAmount(money.elements.amount.value)
     if (!units) throw new Error('Enter an amount greater than zero.')
     const ref = accountRef(user)
     await runTransaction(database, async transaction => {
       const snapshot = await transaction.get(ref)
       if (!snapshot.exists()) throw new Error('Set up your account first.')
-      const balance = snapshot.data().balance + (action === 'deposit' ? units : -units)
+      const account = snapshot.data()
+      await checkPin(pin, account)
+      const balance = account.balance + (action === 'deposit' ? units : -units)
       if (balance < 0) throw new Error('Insufficient savings.')
       if (balance > 100_000_000_000) throw new Error('Savings limit exceeded.')
       transaction.update(ref, { balance })
@@ -206,7 +216,7 @@ settings.addEventListener('submit', event => {
     const ref = accountRef(user)
     await runTransaction(database, async transaction => {
       const account = (await transaction.get(ref)).data()
-      if (!account || await hashPin(pin, account.pinSalt) !== account.pinHash) throw new Error('Incorrect PIN.')
+      await checkPin(pin, account)
       transaction.update(ref, { balance })
     })
     settings.reset()
