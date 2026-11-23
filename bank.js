@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js'
-import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js'
-import { doc, getFirestore, onSnapshot, runTransaction } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js'
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, deleteUser, reauthenticateWithPopup, reauthenticateWithCredential, EmailAuthProvider } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js'
+import { deleteDoc, doc, getFirestore, onSnapshot, runTransaction } from 'https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js'
 
 const app = initializeApp({
   apiKey: 'AIzaSyCMmlX90qEs_EN72RTo3BLHPNwls-7dFIA',
@@ -13,6 +13,27 @@ const database = getFirestore(app)
 const get = id => document.getElementById(id)
 const profile = get('profile-form')
 const money = get('money-form')
+const settings = get('settings-form')
+const credentials = get('credentials')
+const deletion = get('delete-form')
+const fields = ['name', 'email', 'phone', 'number', 'address', 'type', 'username', 'customerId']
+let signInProvider
+let deleting = false
+
+function parseAmount(amount) {
+  if (!/^\d{1,9}(\.\d{1,2})?$/.test(amount)) throw new Error('Enter an amount with up to two decimal places.')
+  const [rupees, paise = ''] = amount.split('.')
+  return Number(rupees) * 100 + Number(paise.padEnd(2, '0'))
+}
+
+async function hashPin(pin, salt) {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey('raw', encoder.encode(pin), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({
+    name: 'PBKDF2', salt: encoder.encode(salt), iterations: 210_000, hash: 'SHA-256'
+  }, key, 256)
+  return Array.from(new Uint8Array(bits), byte => byte.toString(16).padStart(2, '0')).join('')
+}
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
 let unsubscribe = () => {}
 
@@ -58,7 +79,17 @@ get('sign-out').addEventListener('click', event => {
   perform([event.currentTarget], 'account-status', () => signOut(auth))
 })
 
-onAuthStateChanged(auth, user => {
+credentials.addEventListener('submit', event => {
+  event.preventDefault()
+  if (!event.submitter) return
+  const method = event.submitter.value === 'create' ? createUserWithEmailAndPassword : signInWithEmailAndPassword
+  perform(credentials.querySelectorAll('button'), 'account-status', async () => {
+    await method(auth, credentials.elements.email.value.trim(), credentials.elements.password.value)
+    credentials.reset()
+  })
+})
+
+onAuthStateChanged(auth, async user => {
   unsubscribe()
   status('account-status', '')
   status('money-status', '')
@@ -70,16 +101,35 @@ onAuthStateChanged(auth, user => {
     return
   }
   show('loading')
+  try {
+    const token = await user.getIdTokenResult()
+    if (auth.currentUser?.uid !== user.uid) return
+    signInProvider = token.signInProvider
+  } catch (error) {
+    if (auth.currentUser?.uid === user.uid) status('account-status', errorMessage(error), true)
+    return
+  }
+  get('delete-password').hidden = signInProvider !== 'password'
+  deletion.elements.password.required = signInProvider === 'password'
+  deletion.reset()
   profile.elements.namedItem('name').value = user.displayName || ''
   profile.elements.email.value = user.email || ''
   unsubscribe = onSnapshot(accountRef(user), snapshot => {
-    if (!snapshot.exists()) {
+    if (deleting) return
+    if (!snapshot.exists() || !snapshot.data().pinHash) {
+      if (snapshot.exists()) {
+        for (const field of ['name', 'phone']) profile.elements.namedItem(field).value = snapshot.data()[field]
+        profile.elements.initial.value = (snapshot.data().balance / 100).toFixed(2)
+        profile.elements.initial.readOnly = true
+      } else {
+        profile.elements.initial.readOnly = false
+      }
       show('profile')
       return
     }
     const account = snapshot.data()
     get('balance').textContent = currency.format(account.balance / 100)
-    for (const field of ['name', 'email', 'phone']) {
+    for (const field of fields) {
       get('account-' + field).textContent = account[field]
     }
     show('dashboard')
@@ -99,11 +149,26 @@ profile.addEventListener('submit', event => {
     if (!name || !/^[+\d][\d ().-]{5,24}$/.test(phone) || phone.replace(/\D/g, '').length < 7) {
       throw new Error('Enter your full name and a valid phone number.')
     }
+    const values = Object.fromEntries(new FormData(profile))
+    const address = values.address.trim()
+    const customerId = values.customerId.trim()
+    if (!address || !customerId || !/^[0-9]{4,6}$/.test(values.pin)) {
+      throw new Error('Enter your address, customer ID and a 4–6 digit PIN.')
+    }
+    const pinSalt = crypto.randomUUID()
+    const pinHash = await hashPin(values.pin, pinSalt)
+    const initial = parseAmount(values.initial)
     const ref = accountRef(user)
     await runTransaction(database, async transaction => {
       const existing = await transaction.get(ref)
-      if (!existing.exists()) transaction.set(ref, { name, phone, email: user.email, balance: 0 })
+      if (existing.data()?.pinHash) return
+      transaction.set(ref, {
+        name, phone, email: user.email, address, customerId, pinSalt, pinHash,
+        number: values.number, username: values.username, type: values.type,
+        balance: existing.exists() ? existing.data().balance : initial
+      })
     })
+    profile.elements.pin.value = ''
   })
 })
 
@@ -113,10 +178,7 @@ money.addEventListener('submit', event => {
   const action = event.submitter?.value
   if (!user || !['deposit', 'withdraw'].includes(action)) return
   perform(money.querySelectorAll('button'), 'money-status', async () => {
-    const amount = money.elements.amount.value
-    if (!/^\d{1,9}(\.\d{1,2})?$/.test(amount)) throw new Error('Enter up to two decimal places.')
-    const [rupees, paise = ''] = amount.split('.')
-    const units = Number(rupees) * 100 + Number(paise.padEnd(2, '0'))
+    const units = parseAmount(money.elements.amount.value)
     if (!units) throw new Error('Enter an amount greater than zero.')
     const ref = accountRef(user)
     await runTransaction(database, async transaction => {
@@ -130,6 +192,49 @@ money.addEventListener('submit', event => {
     if (auth.currentUser?.uid === user.uid) {
       money.reset()
       status('money-status', action === 'deposit' ? 'Deposit complete.' : 'Withdrawal complete.')
+    }
+  })
+})
+
+settings.addEventListener('submit', event => {
+  event.preventDefault()
+  const user = auth.currentUser
+  if (!user) return
+  perform(settings.querySelectorAll('button'), 'settings-status', async () => {
+    const balance = parseAmount(settings.elements.amount.value)
+    const pin = settings.elements.pin.value
+    const ref = accountRef(user)
+    await runTransaction(database, async transaction => {
+      const account = (await transaction.get(ref)).data()
+      if (!account || await hashPin(pin, account.pinSalt) !== account.pinHash) throw new Error('Incorrect PIN.')
+      transaction.update(ref, { balance })
+    })
+    settings.reset()
+    status('settings-status', 'Demo balance updated.')
+  })
+})
+
+deletion.addEventListener('submit', event => {
+  event.preventDefault()
+  const user = auth.currentUser
+  if (!user || !confirm('Permanently delete your account and demo balance?')) return
+  perform(deletion.querySelectorAll('button'), 'settings-status', async () => {
+    if (signInProvider === 'password') {
+      await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, deletion.elements.password.value))
+    } else {
+      await reauthenticateWithPopup(user, new GoogleAuthProvider())
+    }
+    deleting = true
+    try {
+      await deleteDoc(accountRef(user))
+      try {
+        await deleteUser(user)
+      } catch {
+        throw new Error('Account details were deleted. Retry to remove your sign-in account.')
+      }
+    } finally {
+      deleting = false
+      deletion.reset()
     }
   })
 })
